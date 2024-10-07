@@ -8,7 +8,7 @@ from streamlit_folium import st_folium
 @st.cache_data
 def get_cached_graph():
     start_location = [12.9716, 77.6412]  # Example: Indiranagar coordinates
-    G = ox.graph_from_point(start_location, dist=25000, network_type='drive')
+   
     # Initialize a progress bar
     progress_bar = st.progress(0)
     progress_text = st.empty()
@@ -21,7 +21,7 @@ def get_cached_graph():
     progress_bar.progress(20)
 
     progress_text.text("Fetching road network data...")
-    G = ox.graph_from_point(start_location, dist=3000, network_type='drive')
+    G = ox.graph_from_point(start_location, dist=25000, network_type='drive')
     
     # Simulate more steps
     time.sleep(0.5)
