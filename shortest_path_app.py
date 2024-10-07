@@ -3,6 +3,7 @@ import osmnx as ox
 import networkx as nx
 import folium
 from streamlit_folium import st_folium
+import time
 
 # Cache the road network graph to improve performance
 @st.cache_data
