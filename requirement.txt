@@ -1,0 +1,6 @@
+streamlit
+osmnx
+folium
+networkx
+streamlit-folium
+scikit-learn
