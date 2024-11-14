@@ -1,8 +1,10 @@
 streamlit
-osmnx
-folium
-networkx
-streamlit-folium
+pandas
+numpy
+matplotlib
 scikit-learn
+tensorflow
+folium
 geopy
-joblib
+selenium
+Pillow
