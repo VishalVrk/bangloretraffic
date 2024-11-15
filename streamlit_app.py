@@ -11,14 +11,8 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import MeanSquaredError
 import folium
 from geopy.geocoders import Nominatim
-from PIL import Image
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-import time
-import os
 import requests
-from PIL import Image
+from streamlit_folium import st_folium
 
 # Streamlit Setup
 st.title("Bangalore City Traffic Prediction")
@@ -140,7 +134,6 @@ if uploaded_file is not None:
     st.write(f"**Selected Model Prediction Value**: {selected_prediction}")
     st.write(f"**Recommended Route Type**: {route_type.capitalize()}")
 
-
     st.subheader("Traffic-based Route Visualization")
     geolocator = Nominatim(user_agent="myGeopyApp")
     start_location = "Indiranagar, Bangalore"
@@ -148,48 +141,29 @@ if uploaded_file is not None:
     start_coords = geolocator.geocode(start_location)
     end_coords = geolocator.geocode(end_location)
 
+    # Create and display map
+    map_display = folium.Map(location=[start_coords.latitude, start_coords.longitude], zoom_start=13)
+    route_profile = "driving-traffic" if route_type == "alternative" else "driving"
+    
+    # Get route data from Mapbox
+    url = (
+        f"https://api.mapbox.com/directions/v5/mapbox/{route_profile}/"
+        f"{start_coords.longitude},{start_coords.latitude};"
+        f"{end_coords.longitude},{end_coords.latitude}?geometries=geojson&access_token=pk.eyJ1IjoidmlzaGFscmsiLCJhIjoiY20zM2I0d3UzMTljejJrcjMxbm5qY3loeiJ9.A9CAu8GyGGxkHkq0AYfDDQ"
+    )
+    response = requests.get(url)
+    route_data = response.json()
 
-    def save_map_as_image(route_type="normal"):
-    # Generate Folium map
-        map_display = folium.Map(location=[start_coords.latitude, start_coords.longitude], zoom_start=13)
-        route_profile = "driving-traffic" if route_type == "alternative" else "driving"
-        url = (
-            f"https://api.mapbox.com/directions/v5/mapbox/{route_profile}/"
-            f"{start_coords.longitude},{start_coords.latitude};"
-            f"{end_coords.longitude},{end_coords.latitude}?geometries=geojson&access_token=pk.eyJ1IjoidmlzaGFscmsiLCJhIjoiY20zM2I0d3UzMTljejJrcjMxbm5qY3loeiJ9.A9CAu8GyGGxkHkq0AYfDDQ"
-        )
-        response = requests.get(url)
-        route_data = response.json()
-
-        if 'routes' not in route_data or not route_data['routes']:
-            st.error("No route data available.")
-            return None
-
+    if 'routes' in route_data and route_data['routes']:
         route_coords = [[lat, lon] for lon, lat in route_data['routes'][0]['geometry']['coordinates']]
-        folium.PolyLine(route_coords, color="blue" if route_type == "normal" else "red", weight=5, opacity=0.8).add_to(map_display)
-        map_path = os.path.abspath("map.html")
-        map_display.save(map_path)
-
-        # Configure Selenium Chrome options
-        options = webdriver.ChromeOptions()
-        options.add_argument("--headless")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--disable-software-rasterizer")
-        options.add_argument("--disable-gpu")
-
-        # Initialize WebDriver
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-        driver.get("file://" + map_path)
-        time.sleep(2)  # Wait for the map to fully load
-        driver.save_screenshot("map_image.png")
-        driver.quit()
-
-        return Image.open("map_image.png")
-
-
-
-    # Generate and display map image based on the selected prediction's route type
-    map_image = save_map_as_image(route_type=route_type)
-    if map_image:
-        st.image(map_image, caption="Route Map", use_column_width=True)
+        folium.PolyLine(
+            route_coords,
+            color="blue" if route_type == "normal" else "red",
+            weight=5,
+            opacity=0.8
+        ).add_to(map_display)
+        
+        # Display the map using streamlit_folium
+        st_folium(map_display, width=800)
+    else:
+        st.error("No route data available.")
