@@ -8,3 +8,5 @@ folium
 geopy
 selenium
 Pillow
+webdriver-manager
+requests

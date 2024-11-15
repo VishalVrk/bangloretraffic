@@ -13,9 +13,12 @@ import folium
 from geopy.geocoders import Nominatim
 from PIL import Image
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 import time
 import os
 import requests
+from PIL import Image
 
 # Streamlit Setup
 st.title("Bangalore City Traffic Prediction")
@@ -145,8 +148,9 @@ if uploaded_file is not None:
     start_coords = geolocator.geocode(start_location)
     end_coords = geolocator.geocode(end_location)
 
+
     def save_map_as_image(route_type="normal"):
-        # Generate Folium map
+    # Generate Folium map
         map_display = folium.Map(location=[start_coords.latitude, start_coords.longitude], zoom_start=13)
         route_profile = "driving-traffic" if route_type == "alternative" else "driving"
         url = (
@@ -166,16 +170,24 @@ if uploaded_file is not None:
         map_path = os.path.abspath("map.html")
         map_display.save(map_path)
 
-        # Selenium screenshot capture
+        # Configure Selenium Chrome options
         options = webdriver.ChromeOptions()
         options.add_argument("--headless")
-        driver = webdriver.Chrome(options=options)
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-software-rasterizer")
+        options.add_argument("--disable-gpu")
+
+        # Initialize WebDriver
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         driver.get("file://" + map_path)
-        time.sleep(2)  # Wait for map load
+        time.sleep(2)  # Wait for the map to fully load
         driver.save_screenshot("map_image.png")
         driver.quit()
 
         return Image.open("map_image.png")
+
+
 
     # Generate and display map image based on the selected prediction's route type
     map_image = save_map_as_image(route_type=route_type)
