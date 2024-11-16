@@ -25,6 +25,21 @@ if uploaded_file is not None:
     traffic_data = pd.read_csv(uploaded_file)
     st.write("Data preview:", traffic_data.head())
 
+    # Area Name Dropdown Filter
+    area_names = traffic_data['Area Name'].unique()
+    selected_area = st.selectbox("Select Area Name", options=area_names)
+
+    # Filter data based on selected Area Name
+    filtered_data = traffic_data[traffic_data['Area Name'] == selected_area]
+
+    # Intersection Name Dropdown Filter
+    intersection_names = filtered_data['Road/Intersection Name'].unique()
+    selected_intersection = st.selectbox("Select Road/Intersection Name", options=intersection_names)
+
+    # Display filtered data
+    filtered_intersection_data = filtered_data[filtered_data['Road/Intersection Name'] == selected_intersection]
+    st.write(f"Filtered Data for {selected_area} - {selected_intersection}:", filtered_intersection_data)
+
     # Encode categorical features
     categorical_columns = ['Area Name', 'Road/Intersection Name', 'Weather Conditions', 'Roadwork and Construction Activity']
     for column in categorical_columns:
@@ -135,45 +150,72 @@ if uploaded_file is not None:
     st.write(f"**Recommended Route Type**: {route_type.capitalize()}")
 
     st.subheader("Traffic-based Route Visualization")
-    geolocator = Nominatim(user_agent="myGeopyApp")
-    start_location = "Indiranagar, Bangalore"
-    end_location = "Koramangala, Bangalore"
-    start_coords = geolocator.geocode(start_location)
-    end_coords = geolocator.geocode(end_location)
 
-    # Create and display map
-    map_display = folium.Map(location=[start_coords.latitude, start_coords.longitude], zoom_start=13,
-        zoom_control=False,  # Disable zoom buttons
-        dragging=False,      # Disable map dragging
-        scrollWheelZoom=False,  # Disable scroll wheel zoom
-        doubleClickZoom=False,  # Disable double click zoom
-        touchZoom=False,     # Disable touch zoom
+    def get_geolocations(areas):
+        geolocator = Nominatim(user_agent="myGeopyApp")
+        geolocations = {}
+        for area in areas:
+            location = geolocator.geocode(f"{area}, Bangalore")
+            if location:
+                geolocations[area] = (location.latitude, location.longitude)
+            else:
+                geolocations[area] = None  # Handle missing locations
+        return geolocations
+
+    # Fetch and cache geolocations
+    geolocations = get_geolocations(area_names)
+
+    # Dropdowns for start and end locations
+    start_location = st.selectbox("Select Start Location (Area Name)", options=area_names, key="unique_start_area")
+    end_location = st.selectbox("Select End Location (Area Name)", options=area_names, key="unique_end_area")
+
+    # Retrieve coordinates from cached geolocations
+    start_coords = geolocations.get(start_location)
+    end_coords = geolocations.get(end_location)
+
+    if start_coords and end_coords:
+        # Create and display map
+        map_display = folium.Map(
+            location=[start_coords[0], start_coords[1]],
+            zoom_start=13,
+            zoom_control=True,       # Disable zoom buttons
+            dragging=True,           # Disable map dragging
+            scrollWheelZoom=False,    # Disable scroll wheel zoom
+            doubleClickZoom=False,    # Disable double click zoom
+            touchZoom=False           # Disable touch zoom
         )
-    # Remove other map controls
-    map_display.options['zoomControl'] = False
-    map_display.options['scrollWheelZoom'] = False
-    route_profile = "driving-traffic" if route_type == "alternative" else "driving"
-    
-    # Get route data from Mapbox
-    url = (
-        f"https://api.mapbox.com/directions/v5/mapbox/{route_profile}/"
-        f"{start_coords.longitude},{start_coords.latitude};"
-        f"{end_coords.longitude},{end_coords.latitude}?geometries=geojson&access_token=pk.eyJ1IjoidmlzaGFscmsiLCJhIjoiY20zM2I0d3UzMTljejJrcjMxbm5qY3loeiJ9.A9CAu8GyGGxkHkq0AYfDDQ"
-    )
-    response = requests.get(url)
-    route_data = response.json()
 
-    if 'routes' in route_data and route_data['routes']:
-        route_coords = [[lat, lon] for lon, lat in route_data['routes'][0]['geometry']['coordinates']]
-        folium.PolyLine(
-            route_coords,
-            color="blue" if route_type == "normal" else "red",
-            weight=5,
-            opacity=0.8
-        ).add_to(map_display)
-        
-        # Display the map using streamlit_folium
-        st_folium(map_display, width=800,returned_objects=[],
-            feature_group_to_add=None,)
+        # Route type based on traffic prediction
+        route_profile = "driving-traffic" if route_type == "alternative" else "driving"
+
+        # Get route data from Mapbox
+        url = (
+            f"https://api.mapbox.com/directions/v5/mapbox/{route_profile}/"
+            f"{start_coords[1]},{start_coords[0]};"
+            f"{end_coords[1]},{end_coords[0]}?geometries=geojson&access_token="
+            f"pk.eyJ1IjoidmlzaGFscmsiLCJhIjoiY20zM2I0d3UzMTljejJrcjMxbm5qY3loeiJ9.A9CAu8GyGGxkHkq0AYfDDQ"
+        )
+        response = requests.get(url)
+        route_data = response.json()
+
+        if 'routes' in route_data and route_data['routes']:
+            route_coords = [
+                [lat, lon] for lon, lat in route_data['routes'][0]['geometry']['coordinates']
+            ]
+            folium.PolyLine(
+                route_coords,
+                color="blue" if route_type == "normal" else "red",
+                weight=5,
+                opacity=0.8
+            ).add_to(map_display)
+
+            # Display the map using streamlit_folium
+            st_folium(
+                map_display,
+                width=800,
+                returned_objects=[]
+            )
+        else:
+            st.error("No route data available.")
     else:
-        st.error("No route data available.")
+        st.error("Could not retrieve coordinates for selected locations.")
