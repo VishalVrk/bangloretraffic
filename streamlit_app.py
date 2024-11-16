@@ -142,7 +142,16 @@ if uploaded_file is not None:
     end_coords = geolocator.geocode(end_location)
 
     # Create and display map
-    map_display = folium.Map(location=[start_coords.latitude, start_coords.longitude], zoom_start=13)
+    map_display = folium.Map(location=[start_coords.latitude, start_coords.longitude], zoom_start=13,
+        zoom_control=False,  # Disable zoom buttons
+        dragging=False,      # Disable map dragging
+        scrollWheelZoom=False,  # Disable scroll wheel zoom
+        doubleClickZoom=False,  # Disable double click zoom
+        touchZoom=False,     # Disable touch zoom
+        )
+    # Remove other map controls
+    map_display.options['zoomControl'] = False
+    map_display.options['scrollWheelZoom'] = False
     route_profile = "driving-traffic" if route_type == "alternative" else "driving"
     
     # Get route data from Mapbox
@@ -164,6 +173,7 @@ if uploaded_file is not None:
         ).add_to(map_display)
         
         # Display the map using streamlit_folium
-        st_folium(map_display, width=800)
+        st_folium(map_display, width=800,returned_objects=[],
+            feature_group_to_add=None,)
     else:
         st.error("No route data available.")
